@@ -23,7 +23,7 @@ namespace Celeste.Mod.viddiesToolbox {
         public static string UnfreezeSound = SFX.ui_game_unpause;
         public static string FrameAdvanceSound = SFX.ui_main_button_select;
 
-        public static float FreezeTime = 0.01666666f * 1000;
+        public static float FreezeTime = 0.01666666f * 100;
         public override Type SettingsType => typeof(ModuleSettings);
         public ModuleSettings ModSettings => (ModuleSettings)this._Settings;
 
