@@ -51,6 +51,8 @@ namespace Celeste.Mod.viddiesToolbox.Tools {
                 }
                 _ApplyRemainderIndex = -1;
             }
+            
+            if (!Mod.ModSettings.HotkeysEnabled) return;
 
             for (int i = 0; i < Settings.ButtonsTeleportPoint.Count; i++) {
                 if (!Settings.ButtonsTeleportPoint[i].Pressed) continue;
