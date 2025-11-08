@@ -19,23 +19,22 @@ namespace Celeste.Mod.viddiesToolbox {
     public class ViddiesToolboxModule : EverestModule {
         
         public static ViddiesToolboxModule Instance;
-        public static string FreezeSound   = SFX.ui_game_pause;
-        public static string UnfreezeSound = SFX.ui_game_unpause;
-        public static string FrameAdvanceSound = SFX.ui_main_button_select;
+        private const string FREEZE_SOUND   = SFX.ui_game_pause;
+        private const string UNFREEZE_SOUND = SFX.ui_game_unpause;
+        private const string FRAME_ADVANCE_SOUND = SFX.ui_main_button_select;
 
-        public static float FreezeTime = 0.01666666f * 100;
+        private const float FREEZE_TIME = 0.01666666f * 100;
         public override Type SettingsType => typeof(ModuleSettings);
         public ModuleSettings ModSettings => (ModuleSettings)this._Settings;
 
         private bool ConsistencyTrackerLoaded { get; set; } = false;
-        public bool RoomTimerEnabled => ModSettings.EnableRoomTimer && ConsistencyTrackerLoaded;
+        private bool RoomTimerEnabled => ModSettings.EnableRoomTimer && ConsistencyTrackerLoaded;
 
-        private FreezeState EngineFrozenState = FreezeState.Normal;
-        private float _SavedFreezeTimer = float.NaN;
-        private bool _DidFrameAdvance = false;
-        private int _AdvanceFrames = -1;
+        private FreezeState engineFrozenState = FreezeState.Normal;
+        private float savedFreezeTimer = float.NaN;
+        private int advanceFrames = -1;
 
-        public TeleportPoints Teleports = new TeleportPoints();
+        private readonly TeleportPoints teleports = new TeleportPoints();
 
         public ViddiesToolboxModule() {
             Instance = this;
@@ -49,7 +48,7 @@ namespace Celeste.Mod.viddiesToolbox {
             On.Celeste.Level.LoadLevel += Level_LoadLevel;
             On.Celeste.Input.GetAimVector += Input_GetAimVector;
 
-            Teleports.Hook();
+            teleports.Hook();
         }
 
         public override void Unload() {
@@ -58,7 +57,7 @@ namespace Celeste.Mod.viddiesToolbox {
             On.Celeste.Level.LoadLevel -= Level_LoadLevel;
             On.Celeste.Input.GetAimVector -= Input_GetAimVector;
 
-            Teleports.UnHook();
+            teleports.UnHook();
         }
 
         public override void Initialize() {
@@ -80,7 +79,7 @@ namespace Celeste.Mod.viddiesToolbox {
             base.OnInputInitialize();
 
             //Register custom bindings
-            foreach (KeyValuePair<string, ButtonBinding> entry in ModSettings.ButtonsConsoleCommands) {
+            foreach (var entry in ModSettings.ButtonsConsoleCommands) {
                 InitializeButtonBinding(entry.Value);
             }
             foreach (ButtonBinding entry in ModSettings.ButtonsTeleportPoint) {
@@ -91,11 +90,11 @@ namespace Celeste.Mod.viddiesToolbox {
         #region Hooks
 
         private FreezeState? _TargetFreezeState;
-        public void EnginePreUpdate() {
-            FreezeState newState = EngineFrozenState;
+        private void EnginePreUpdate() {
+            FreezeState newState = engineFrozenState;
             
             if (ModSettings.ButtonToggleFreezeEngine.Pressed && ModSettings.HotkeysEnabled) {
-                if (EngineFrozenState == FreezeState.Normal) {
+                if (engineFrozenState == FreezeState.Normal) {
                     _TargetFreezeState = FreezeState.Frozen;
                     //Log($"Freezing engine | FreezeTimer: {Engine.FreezeTimer}, SavedFreezeTimer: {_SavedFreezeTimer} | DeltaTime: {Engine.DeltaTime}, RawDeltaTime: {Engine.RawDeltaTime}");
                 } else {
@@ -112,42 +111,42 @@ namespace Celeste.Mod.viddiesToolbox {
             }
 
             bool doFrameAdvance = (ModSettings.ButtonAdvanceFrame.Pressed || ModSettings.ButtonAdvanceMultipleFrames.Pressed) && ModSettings.HotkeysEnabled;
-            switch (EngineFrozenState) {
+            switch (engineFrozenState) {
                 case FreezeState.Normal when newState == FreezeState.Frozen: //Previously normal, now frozen
-                    _SavedFreezeTimer = Engine.FreezeTimer;
-                    Engine.FreezeTimer = FreezeTime;
-                    Audio.Play(FreezeSound);
+                    savedFreezeTimer = Engine.FreezeTimer;
+                    Engine.FreezeTimer = FREEZE_TIME;
+                    Audio.Play(FREEZE_SOUND);
                     break;
                 case FreezeState.Frozen when newState == FreezeState.Normal: //Previously frozen, now normal
-                    Engine.FreezeTimer = _SavedFreezeTimer;
-                    _SavedFreezeTimer = float.NaN;
-                    Audio.Play(UnfreezeSound);
+                    Engine.FreezeTimer = savedFreezeTimer;
+                    savedFreezeTimer = float.NaN;
+                    Audio.Play(UNFREEZE_SOUND);
                     break;
                 case FreezeState.Frozen when newState == FreezeState.Frozen: {
-                    if (doFrameAdvance && _AdvanceFrames == -1) {
-                        _AdvanceFrames = ModSettings.ButtonAdvanceMultipleFrames.Pressed ? ModSettings.FreezeEngineMultipleFrames : 1;
-                        Engine.FreezeTimer = _SavedFreezeTimer;
-                        Audio.Play(FrameAdvanceSound);
+                    if (doFrameAdvance && advanceFrames == -1) {
+                        advanceFrames = ModSettings.ButtonAdvanceMultipleFrames.Pressed ? ModSettings.FreezeEngineMultipleFrames : 1;
+                        Engine.FreezeTimer = savedFreezeTimer;
+                        Audio.Play(FRAME_ADVANCE_SOUND);
                         ResetLogOnce();
                     }
 
-                    if (_AdvanceFrames > 0) {
+                    if (advanceFrames > 0) {
                         ResetLogOnce();
-                        _AdvanceFrames--;
-                    } else if (_AdvanceFrames == 0) {
-                        _AdvanceFrames = -1;
-                        _SavedFreezeTimer = Engine.FreezeTimer;
-                        Engine.FreezeTimer = FreezeTime;
+                        advanceFrames--;
+                    } else if (advanceFrames == 0) {
+                        advanceFrames = -1;
+                        savedFreezeTimer = Engine.FreezeTimer;
+                        Engine.FreezeTimer = FREEZE_TIME;
                     } else {
-                        Engine.FreezeTimer = FreezeTime;
+                        Engine.FreezeTimer = FREEZE_TIME;
                     }
                     
                     break;
                 }
             }
 
-            LogOnce($"Engine.FreezeTime: {Engine.FreezeTimer}, _SavedFreezeTimer: {_SavedFreezeTimer}");
-            EngineFrozenState = newState;
+            LogOnce($"Engine.FreezeTime: {Engine.FreezeTimer}, _SavedFreezeTimer: {savedFreezeTimer}");
+            engineFrozenState = newState;
         }
 
         private void Engine_Update(On.Monocle.Engine.orig_Update orig, Engine self, GameTime gameTime) {
@@ -157,9 +156,14 @@ namespace Celeste.Mod.viddiesToolbox {
                 ModSettings.HotkeysEnabled = !ModSettings.HotkeysEnabled;
                 Log($"Hotkeys enabled: {ModSettings.HotkeysEnabled}", LogLevel.Info);
             }
+
+            if (ModSettings.ToggleAnalogFix.Pressed) {
+                ModSettings.AnalogUseDashDirectionsForMovement = !ModSettings.AnalogUseDashDirectionsForMovement;
+                SetAnalogMoveDirectionsEnabled(ModSettings.AnalogUseDashDirectionsForMovement);
+                Log($"Analog fix (Dash for Movement) enabled: {ModSettings.AnalogUseDashDirectionsForMovement}", LogLevel.Info);
+            }
             
-            if (!(Engine.Scene is Level)) return;
-            Level level = Engine.Scene as Level;
+            if (!(Engine.Scene is Level level)) return;
             if (!level.Paused) EnginePreUpdate();
 
             Player player = level.Tracker.GetEntity<Player>();
@@ -168,7 +172,7 @@ namespace Celeste.Mod.viddiesToolbox {
             UpdateHotkeyPresses(player);
         }
 
-        public void UpdateHotkeyPresses(Player player) {
+        private void UpdateHotkeyPresses(Player player) {
             if (ModSettings == null) {
                 Log($"'ModSettings' was null!", LogLevel.Warn);
                 return;
@@ -179,7 +183,7 @@ namespace Celeste.Mod.viddiesToolbox {
             }
             if (!ModSettings.HotkeysEnabled) return;
 
-            Follower follower = player.Leader.Followers.Find((f) => f.Entity is Strawberry);
+            Follower follower = player.Leader.Followers.Find(f => f.Entity is Strawberry);
             if (follower != null && ModSettings.ButtonTargetGoldenModifier.Check) {
                 follower.MoveTowardsLeader = false;
                 Strawberry berry = (Strawberry)follower.Entity;
@@ -264,7 +268,7 @@ namespace Celeste.Mod.viddiesToolbox {
         }
 
 
-        int logCounter = 0;
+        private int logCounter = 0;
         private void SpeedrunTimerDisplay_DrawTime(On.Celeste.SpeedrunTimerDisplay.orig_DrawTime orig, Vector2 position, string timeString, float scale, bool valid, bool finished, bool bestTime, float alpha) {
             if (!ModSettings.EnableMapTimer && !RoomTimerEnabled) {
                 orig(position, timeString, scale, valid, finished, bestTime, alpha);
@@ -380,14 +384,16 @@ namespace Celeste.Mod.viddiesToolbox {
             Logger.Log(level, "viddiesToolbox", message);
         }
 
-        private bool _LoggedOnce = false;
-        public void LogOnce(string message) {
-            if (_LoggedOnce) return;
-            _LoggedOnce = true;
+        private bool loggedOnce = false;
+
+        private void LogOnce(string message) {
+            if (loggedOnce) return;
+            loggedOnce = true;
             Log(message, LogLevel.Info);
         }
-        public void ResetLogOnce() {
-            _LoggedOnce = false;
+
+        private void ResetLogOnce() {
+            loggedOnce = false;
         }
         #endregion
 
@@ -422,24 +428,24 @@ namespace Celeste.Mod.viddiesToolbox {
         #endregion
 
         #region Button Binding Stuff
-        public void InitializeButtonBinding(ButtonBinding buttonBinding) {
+        public static void InitializeButtonBinding(ButtonBinding buttonBinding) {
             if (buttonBinding == null) return;
             if (buttonBinding.Button != null) return;
             if (buttonBinding.Binding == null) return;
             
-            buttonBinding.Button = new VirtualButton(buttonBinding.Binding, Input.Gamepad, 0.08f, 0.2f);
-            buttonBinding.Button.AutoConsumeBuffer = true;
+            buttonBinding.Button = new VirtualButton(buttonBinding.Binding, Input.Gamepad, 0.08f, 0.2f) {
+                AutoConsumeBuffer = true
+            };
         }
-        public void DeregisterButtonBinding(ButtonBinding buttonBinding) {
-            if (buttonBinding == null) return;
-            buttonBinding.Button?.Deregister();
+        public static void DeregisterButtonBinding(ButtonBinding buttonBinding) {
+            buttonBinding?.Button?.Deregister();
         }
 
         public override void OnInputDeregister() {
             base.OnInputDeregister();
 
             //Deregister custom bindings
-            foreach (KeyValuePair<string, ButtonBinding> entry in ModSettings.ButtonsConsoleCommands) {
+            foreach (var entry in ModSettings.ButtonsConsoleCommands) {
                 DeregisterButtonBinding(entry.Value);
             }
             foreach (ButtonBinding entry in ModSettings.ButtonsTeleportPoint) {

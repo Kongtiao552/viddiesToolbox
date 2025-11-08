@@ -37,6 +37,7 @@ namespace Celeste.Mod.viddiesToolbox {
         #region Hotkeys
         public bool HotkeysEnabled { get; set; } = true;
         public ButtonBinding ToggleHotkeys { get; set; }
+        public ButtonBinding ToggleAnalogFix { get; set; }
         #endregion
 
         #region Lineup Helper
@@ -110,7 +111,7 @@ namespace Celeste.Mod.viddiesToolbox {
                         int lastIndex = TeleportPoints.Count - 1;
                         TeleportPoints.RemoveAt(lastIndex);
                         //Button Bindings
-                        Mod.DeregisterButtonBinding(ButtonsTeleportPoint[lastIndex]);
+                        ViddiesToolboxModule.DeregisterButtonBinding(ButtonsTeleportPoint[lastIndex]);
                         ButtonsTeleportPoint.RemoveAt(lastIndex);
                     } 
                     while (TeleportPoints.Count < TeleportPointsMax) {
@@ -118,7 +119,7 @@ namespace Celeste.Mod.viddiesToolbox {
                         //Button Bindings
                         ButtonBinding binding = new ButtonBinding();
                         ButtonsTeleportPoint.Add(binding);
-                        Mod.InitializeButtonBinding(binding);
+                        ViddiesToolboxModule.InitializeButtonBinding(binding);
                     }
                 }
             });
@@ -160,7 +161,7 @@ namespace Celeste.Mod.viddiesToolbox {
                 sliderSelectedCommand.Values.Add(Tuple.Create(newButtonName, newButtonName));
                 sliderSelectedCommand.SelectWiggler.Start();
 
-                Mod.InitializeButtonBinding(ButtonsConsoleCommands[newButtonName]);
+                ViddiesToolboxModule.InitializeButtonBinding(ButtonsConsoleCommands[newButtonName]);
             };
 
             buttonDeleteCommand.OnPressed = () => {
