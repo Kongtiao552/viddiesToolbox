@@ -15,8 +15,37 @@ namespace Celeste.Mod.viddiesToolbox {
         private ViddiesToolboxModule Mod => ViddiesToolboxModule.Instance;
 
         #region Map Timer
+        [SettingIgnore]
+        public bool EnableCampaignTimer { get; set; } = false;
+        [SettingIgnore]
         public bool EnableMapTimer { get; set; } = false;
+
+        public bool Timer { get; set; } = false;
+        public void CreateTimerEntry(TextMenu menu, bool inGame) {
+            TextMenu.OnOff campaignEntry = new TextMenu.OnOff("Enable Campaign Timer", EnableCampaignTimer);
+            TextMenu.OnOff mapEntry = new TextMenu.OnOff("Enable Map Timer", EnableMapTimer);
+            campaignEntry.OnValueChange = v => {
+                EnableCampaignTimer = v;
+                if (!v || !EnableMapTimer) return;
+                EnableMapTimer = false;
+                mapEntry.Index = 0;
+                mapEntry.SelectWiggler.Start();
+                mapEntry.ValueWiggler.Start();
+            };
+            mapEntry.OnValueChange = v => {
+                EnableMapTimer = v;
+                if (!v || !EnableCampaignTimer) return;
+                EnableCampaignTimer = false;
+                campaignEntry.Index = 0;
+                campaignEntry.SelectWiggler.Start();
+                campaignEntry.ValueWiggler.Start();
+            };
+            menu.Add(campaignEntry);
+            menu.Add(mapEntry);
+        }
+        
         public bool EnableRoomTimer { get; set; } = false;
+        
         #endregion
 
         #region Analog Direction Fixer
@@ -76,7 +105,7 @@ namespace Celeste.Mod.viddiesToolbox {
         #endregion
 
         #region Freeze Engine Keybinds
-        [SettingRange(2, 99999)]
+        [SettingRange(1, 99999)]
         public int FreezeEngineMultipleFrames { get; set; } = 1;
         
         [SettingSubHeader("Freeze Engine")]
@@ -135,6 +164,7 @@ namespace Celeste.Mod.viddiesToolbox {
             ["Button 1"] = "Invoke Player.MoveV -100",
         };
 
+        [SettingIgnore]
         public string ConsoleCommandSelected { get; set; } = "Button 1";
         public bool ConsoleCommandMenu { get; set; }
         public void CreateConsoleCommandMenuEntry(TextMenu menu, bool inGame) {

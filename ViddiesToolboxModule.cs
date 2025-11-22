@@ -30,6 +30,22 @@ namespace Celeste.Mod.viddiesToolbox {
         private bool ConsistencyTrackerLoaded { get; set; } = false;
         private bool RoomTimerEnabled => ModSettings.EnableRoomTimer && ConsistencyTrackerLoaded;
 
+        private TimerType FileTimer {
+            get {
+                if (ModSettings.EnableCampaignTimer) return TimerType.Campaign;
+                if (ModSettings.EnableMapTimer) return TimerType.Map;
+                if (RoomTimerEnabled) return TimerType.Room;
+                return TimerType.Default;
+            }
+        }
+        private TimerType RunTimer {
+            get {
+                if (RoomTimerEnabled && (ModSettings.EnableCampaignTimer || ModSettings.EnableMapTimer)) return TimerType.Room;
+                return TimerType.Default;
+            }
+        }
+        
+
         private FreezeState engineFrozenState = FreezeState.Normal;
         private float savedFreezeTimer = float.NaN;
         private int advanceFrames = -1;
@@ -66,7 +82,7 @@ namespace Celeste.Mod.viddiesToolbox {
             if (ModSettings.AnalogUseDashDirectionsForMovement) {
                 LoadAnalogMoveDirections();
             }
-
+            
             // load SpeedrunTool if it exists
             SpeedrunToolSupport.Load();
 
@@ -270,50 +286,40 @@ namespace Celeste.Mod.viddiesToolbox {
 
         private int logCounter = 0;
         private void SpeedrunTimerDisplay_DrawTime(On.Celeste.SpeedrunTimerDisplay.orig_DrawTime orig, Vector2 position, string timeString, float scale, bool valid, bool finished, bool bestTime, float alpha) {
-            if (!ModSettings.EnableMapTimer && !RoomTimerEnabled) {
+            if (!ModSettings.EnableMapTimer && !RoomTimerEnabled && !ModSettings.EnableCampaignTimer) {
                 orig(position, timeString, scale, valid, finished, bestTime, alpha);
                 return;
             }
             TimeSpan timeSpan = TimeSpan.FromTicks(SaveData.Instance.Time);
             int num = (int)timeSpan.TotalHours;
-            string fileString = num + timeSpan.ToString("\\:mm\\:ss\\.fff");
+            string fileString = num + timeSpan.ToString(@"\:mm\:ss\.fff");
 
             TimeSpan timeSpanRun = TimeSpan.FromTicks(SaveData.Instance.CurrentSession.Time);
-            string runString = ((!(timeSpanRun.TotalHours >= 1.0)) ? timeSpanRun.ToString("mm\\:ss") : ((int)timeSpanRun.TotalHours + ":" + timeSpanRun.ToString("mm\\:ss")));
+            string runString = !(timeSpanRun.TotalHours >= 1.0) ? timeSpanRun.ToString("mm\\:ss") : (int)timeSpanRun.TotalHours + ":" + timeSpanRun.ToString("mm\\:ss");
 
-            string mapTimeString = "";
-            try {
-                AreaKey area = SaveData.Instance.CurrentSession.Area;
-                AreaStats areaStats = SaveData.Instance.Areas_Safe[area.ID];
-                long time = areaStats.Modes[(int)area.Mode].TimePlayed;
-                TimeSpan timeSpan2 = TimeSpan.FromTicks(time);
-                int num2 = (int)timeSpan2.TotalHours;
-                mapTimeString = num2 + timeSpan2.ToString("\\:mm\\:ss\\.fff");
-
-            } catch (Exception ex) {
-                logCounter++;
-                if (logCounter > 300) {
-                    logCounter = 0;
-                    Logger.LogDetailed(ex, "viddiesToolbox");
-                }
-            }
-
-            string roomTimeString = "";
-            if (ConsistencyTrackerLoaded) {
-                long timeSpent = GetTimeSpentInCurrentRoom();
-                TimeSpan timeSpanRoom = TimeSpan.FromTicks(timeSpent);
-                roomTimeString = ((!(timeSpanRoom.TotalHours >= 1.0)) ? timeSpanRoom.ToString("mm\\:ss") : ((int)timeSpanRoom.TotalHours + ":" + timeSpanRoom.ToString("mm\\:ss")));
-            }
-
+            string newTimeString = null;
             if (timeString == fileString) {
-                if (ModSettings.EnableMapTimer) {
-                    timeString = mapTimeString;
-                } else if (RoomTimerEnabled) {
-                    timeString = roomTimeString;
+                switch (FileTimer) {
+                    case TimerType.Campaign:
+                        newTimeString = CalculateTimeString(TimerType.Campaign);
+                        break;
+                    case TimerType.Map:
+                        newTimeString = CalculateTimeString(TimerType.Map);
+                        break;
+                    case TimerType.Room:
+                        newTimeString = CalculateTimeString(TimerType.Room);
+                        break;
+                    case TimerType.Default:
+                    default:
+                        break;
                 }
             }
-            if (timeString == runString && RoomTimerEnabled && ModSettings.EnableMapTimer) {
-                timeString = roomTimeString;
+            if (timeString == runString && RunTimer == TimerType.Room) {
+                newTimeString = CalculateTimeString(TimerType.Room);
+            }
+            
+            if (!string.IsNullOrEmpty(newTimeString)) {
+                timeString = newTimeString;
             }
 
             orig(position, timeString, scale, valid, finished, bestTime, alpha);
@@ -471,6 +477,59 @@ namespace Celeste.Mod.viddiesToolbox {
         #region CCT Support
         private static long GetTimeSpentInCurrentRoom() {
             return ConsistencyTrackerModule.Instance.CurrentChapterStats.CurrentRoom.TimeSpentInRoom;
+        }
+        #endregion
+
+        #region Timer Stuff
+        private string CalculateTimeString(TimerType type) {
+            logCounter++;
+            if (type == TimerType.Campaign) {
+                try {
+                    AreaKey areaKey = SaveData.Instance.CurrentSession.Area;
+                    LevelSetStats lss = SaveData.Instance.GetLevelSetStatsFor(areaKey.LevelSet);
+                    long totalTime = 0;
+                    if (lss != null) {
+                        totalTime += lss.AreasIncludingCeleste.Sum(area => area.TotalTimePlayed);
+                    }
+                    TimeSpan timeSpan2 = TimeSpan.FromTicks(totalTime);
+                    int num2 = (int)timeSpan2.TotalHours;
+                    return num2 + timeSpan2.ToString(@"\:mm\:ss\.fff");
+                } catch (Exception ex) {
+                    if (logCounter % 3600 == 0) {
+                        logCounter = 0;
+                        Logger.LogDetailed(ex, "viddiesToolbox");
+                    }
+                }
+            } else if (type == TimerType.Map) {
+                try {
+                    AreaKey area = SaveData.Instance.CurrentSession.Area;
+                    AreaStats areaStats = SaveData.Instance.Areas_Safe[area.ID];
+                    long time = areaStats.Modes[(int)area.Mode].TimePlayed;
+                    TimeSpan timeSpan2 = TimeSpan.FromTicks(time);
+                    int num2 = (int)timeSpan2.TotalHours;
+                    return num2 + timeSpan2.ToString(@"\:mm\:ss\.fff");
+                } catch (Exception ex) {
+                    if (logCounter % 3600 == 0) {
+                        Logger.LogDetailed(ex, "viddiesToolbox");
+                    }
+                }
+            } else if (type == TimerType.Room) {
+                if (!ConsistencyTrackerLoaded) return null;
+                long timeSpent = GetTimeSpentInCurrentRoom();
+                TimeSpan timeSpanRoom = TimeSpan.FromTicks(timeSpent);
+                if (!(timeSpanRoom.TotalHours >= 1.0)) {
+                    return timeSpanRoom.ToString(@"mm\:ss");
+                }
+                return (int)timeSpanRoom.TotalHours + ":" + timeSpanRoom.ToString(@"mm\:ss");
+            }
+            return null;
+        }
+
+        private enum TimerType {
+            Campaign,
+            Map,
+            Room,
+            Default,
         }
         #endregion
     }
