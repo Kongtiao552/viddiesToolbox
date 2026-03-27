@@ -190,15 +190,15 @@ namespace Celeste.Mod.viddiesToolbox {
         public string ConsoleCommandSelected { get; set; } = "Button 1";
         public bool ConsoleCommandMenu { get; set; }
         public void CreateConsoleCommandMenuEntry(TextMenu menu, bool inGame) {
-            TextMenuExt.SubMenu subMenu = new TextMenuExt.SubMenu("Bindable Console Commands", false);
+            TextMenuExt.SubMenu subMenu = new TextMenuExt.SubMenu(Dialog.Clean("VIDDIES_TOOLBOX_BINDABLE_CONSOLE_COMMANDS"), false);
 
-            TextMenuExt.EnumerableSlider<string> sliderSelectedCommand = new TextMenuExt.EnumerableSlider<string>("Selected Command", ButtonsConsoleCommands.Keys, ConsoleCommandSelected);
-            TextMenu.SubHeader headerButtonCommand = new TextMenu.SubHeader($"Command: {ConsoleCommands[ConsoleCommandSelected]}", topPadding: false);
+            TextMenuExt.EnumerableSlider<string> sliderSelectedCommand = new TextMenuExt.EnumerableSlider<string>(Dialog.Clean("VIDDIES_TOOLBOX_BINDABLE_CONSOLE_COMMANDS_SELECTED_COMMAND"), ButtonsConsoleCommands.Keys, ConsoleCommandSelected);
+            TextMenu.SubHeader headerButtonCommand = new TextMenu.SubHeader(String.Format(Dialog.Get("VIDDIES_TOOLBOX_BINDABLE_CONSOLE_COMMANDS_CURRENT_COMMAND"), ConsoleCommands[ConsoleCommandSelected]), topPadding: false);
 
-            TextMenu.Button buttonAddCommand = new TextMenu.Button("Add New Command");
-            TextMenu.Button buttonDeleteCommand = new TextMenu.Button("Delete Selected Command");
-            TextMenu.Button buttonImportButtonName = new TextMenu.Button("Import Command Name from Clipboard");
-            TextMenu.Button buttonImportCommand = new TextMenu.Button("Import Console Command from Clipboard");
+            TextMenu.Button buttonAddCommand = new TextMenu.Button(Dialog.Clean("VIDDIES_TOOLBOX_BINDABLE_CONSOLE_COMMANDS_ADD_NEW_COMMAND"));
+            TextMenu.Button buttonDeleteCommand = new TextMenu.Button(Dialog.Clean("VIDDIES_TOOLBOX_BINDABLE_CONSOLE_COMMANDS_DELETE_SELECTED_COMMAND"));
+            TextMenu.Button buttonImportButtonName = new TextMenu.Button(Dialog.Clean("VIDDIES_TOOLBOX_BINDABLE_CONSOLE_COMMANDS_IMPORT_COMMAND_NAME_FROM_CLIPBOARD"));
+            TextMenu.Button buttonImportCommand = new TextMenu.Button(Dialog.Clean("VIDDIES_TOOLBOX_BINDABLE_CONSOLE_COMMANDS_IMPORT_CONSOLE_COMMAND_FROM_CLIPBOARD"));
 
             sliderSelectedCommand.OnValueChange = (v) => {
                 ConsoleCommandSelected = v;
@@ -227,7 +227,7 @@ namespace Celeste.Mod.viddiesToolbox {
                 sliderSelectedCommand.SelectWiggler.Start();
 
                 ConsoleCommandSelected = sliderSelectedCommand.Values[0].Item1;
-                headerButtonCommand.Title = $"Command: {ConsoleCommands[ConsoleCommandSelected]}";
+                headerButtonCommand.Title = String.Format(Dialog.Get("VIDDIES_TOOLBOX_BINDABLE_CONSOLE_COMMANDS_CURRENT_COMMAND"), ConsoleCommands[ConsoleCommandSelected]);
             };
 
             buttonImportButtonName.OnPressed = () => {
@@ -256,7 +256,7 @@ namespace Celeste.Mod.viddiesToolbox {
                 if (string.IsNullOrEmpty(text)) return;
 
                 ConsoleCommands[ConsoleCommandSelected] = text;
-                headerButtonCommand.Title = $"Command: {text}";
+                headerButtonCommand.Title = String.Format(Dialog.Get("VIDDIES_TOOLBOX_BINDABLE_CONSOLE_COMMANDS_CURRENT_COMMAND"), text);
             };
 
 
